@@ -12,6 +12,6 @@ poem = "1"
 
 sqlx = { version = "0.6.0", features = ["runtime-tokio-rustls", "sqlite", "mysql"] }
 tokio = { version = "1", features = ["full"] }
-dotenvy = "0.15"
+dotenv = "0.15"
 serde_json = "1.0.113"
 serde = "1.0.196"

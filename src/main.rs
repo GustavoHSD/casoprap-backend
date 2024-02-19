@@ -1,3 +1,4 @@
+use dotenv::dotenv;
 use poem::{get, http::Method, listener::TcpListener, middleware::Cors, post, EndpointExt, Result, Route, Server};
 use sqlx::MySqlPool;
 use std::{env};
@@ -6,6 +7,8 @@ mod api;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv().ok();
+
     let pool = MySqlPool::connect(&env::var("DATABASE_URL")?).await?;
 
     let cors = Cors::new()
