@@ -1,8 +1,8 @@
-use poem::{error::{Error, InternalServerError}, handler, web::{Data, Json, Path}};
-use sqlx::{FromRow, MySqlPool};
+use poem::{handler, http::StatusCode, web::{Data, Json, Path}, IntoResponse, Response};
+use sqlx::MySqlPool;
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, FromRow)]
+#[derive(Serialize)]
 struct Resource {
     id: i32,
     description: String,
@@ -21,46 +21,77 @@ struct ResourceReq {
 pub async fn create( 
     pool: Data<&MySqlPool>,
     req: Json<ResourceReq>,
-    ) -> Json<serde_json::Value> {
-    let id = sqlx::query!(
+    ) -> impl IntoResponse {
+    let query_result = sqlx::query!(
         "INSERT INTO Resource (description, price, volunteer_id) values (?,?,?)",
         req.description,
         req.price,
         req.volunteer_id
     )
     .execute(pool.0)
-    .await
-    .map_err(InternalServerError).expect("Could not insert volunteer")
-    .last_insert_id();
-    
-    Json(serde_json::json!({
-        "id": id,
-    }))
+    .await;
+     
+    let response = match query_result {
+        Ok(query_result) => {
+            Json(serde_json::json!({
+                "id": query_result.last_insert_id(),
+            })).into_response() 
+        },
+        Err(_) => { 
+            let error_message = serde_json::json!({"error": "Resource could not be inserted"}); 
+            Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response()
+        }, 
+    };
+    response
 }
 
 #[handler]
-pub async fn find_all(pool: Data<&MySqlPool>,) -> Result<Json<Vec<Resource>>, Error> {
+pub async fn find_all(pool: Data<&MySqlPool>,) -> impl IntoResponse {
     let resources = sqlx::query_as!(
         Resource,
         "SELECT * FROM Resource"
     )
     .fetch_all(pool.0)
-    .await
-    .unwrap();
-    
-    Ok(Json(resources))
+    .await;  
+
+    let response = match resources {   
+        Ok(volunteers) => Json(volunteers).into_response(),
+        Err(error) => {
+
+            let error_message = serde_json::json!({"error": error.to_string()});
+ 
+            Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response()
+        },
+    }; 
+    response
 }
 
 #[handler]
-pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> Result<Json<Resource>, Error> {
+pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> impl IntoResponse {
     let resource = sqlx::query_as!(
         Resource,
         "SELECT * FROM Resource WHERE id = ?",
         id
     )
     .fetch_one(pool.0)
-    .await
-    .unwrap();
+    .await;  
 
-    Ok(Json(resource)) 
+    let response = match resource {   
+        Ok(resource) => Json(resource).into_response(),
+        Err(_) => {
+            let error_message = serde_json::json!({"message": "Resource not found"});
+            Response::builder()
+            .content_type("application/json; charset=utf-8")
+            .status(StatusCode::NOT_FOUND)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response() 
+         },
+    }; 
+    response
 }

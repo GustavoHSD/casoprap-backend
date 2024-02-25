@@ -1,4 +1,4 @@
-use poem::{error::{InternalServerError, Error}, handler, web::{Data, Json, Path}};
+use poem::{handler, http::StatusCode, web::{Data, Json, Path}, IntoResponse, Response};
 use sqlx::MySqlPool;
 use serde::{Serialize, Deserialize};
 
@@ -21,7 +21,6 @@ struct AnimalReq {
     a_type: String,
     age: i16,
     rescue_location: String,
-    is_adopted: bool,
     responsible_volunteer: i32,
 }
 
@@ -29,8 +28,8 @@ struct AnimalReq {
 pub async fn create( 
     pool: Data<&MySqlPool>,
     req: Json<AnimalReq>,
-    ) -> Json<serde_json::Value> {
-    let id = sqlx::query!(
+    ) -> impl IntoResponse {
+    let query_result = sqlx::query!(
         "INSERT INTO Animal (name, race, a_type, age, rescue_location, responsible_volunteer) values (?,?,?,?,?,?)",
         req.name,
         req.race,
@@ -40,39 +39,67 @@ pub async fn create(
         req.responsible_volunteer
     )
     .execute(pool.0)
-    .await
-    .map_err(InternalServerError).expect("Could not insert animal")
-    .last_insert_id();
-    
-    Json(serde_json::json!({
-        "id": id,
-        "name": req.name,
-    }))
+    .await;
+ 
+    let response = match query_result {
+        Ok(query_result) => {
+            Json(serde_json::json!({
+                "id": query_result.last_insert_id(),
+                "name": req.name,
+            })).into_response() 
+        },
+        Err(_) => { 
+            let error_message = serde_json::json!({"error": "Animal could not be inserted"}); 
+            Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response()
+        }, 
+    };
+    response
 }
 
 #[handler]
-pub async fn find_all(pool: Data<&MySqlPool>,) -> Result<Json<Vec<Animal>>, Error> {
+pub async fn find_all(pool: Data<&MySqlPool>,) -> impl IntoResponse {
     let animals = sqlx::query_as!(
         Animal,
         "SELECT * FROM Animal"
     )
     .fetch_all(pool.0)
-    .await
-    .unwrap();
-    
-    Ok(Json(animals))
+    .await;  
+
+    let response = match animals {   
+        Ok(animals) => Json(animals).into_response(),
+        Err(error) => {
+            let error_message = serde_json::json!({"error": error.to_string()}); 
+            Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response()
+        },
+    }; 
+    response
 }
 
 #[handler]
-pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> Result<Json<Animal>, Error> {
+pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> impl IntoResponse {
     let animal = sqlx::query_as!(
         Animal,
         "SELECT * FROM Animal WHERE id = ?", 
-        id as i64
+        id
     )
     .fetch_one(pool.0)
-    .await
-    .unwrap();
-    
-    Ok(Json(animal)) 
+    .await;
+
+    let response = match animal {   
+        Ok(animals) => Json(animals).into_response(),
+        Err(_) => {
+            let error_message = serde_json::json!({"error": "Animal not found"}); 
+            Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response()
+        },
+    }; 
+    response
 }

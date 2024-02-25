@@ -1,7 +1,7 @@
 use dotenv::dotenv;
 use poem::{get, http::Method, listener::TcpListener, middleware::Cors, post, EndpointExt, Result, Route, Server};
 use sqlx::MySqlPool;
-use std::{env};
+use std::env;
 
 mod api;
 
@@ -18,17 +18,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_origin("http://localhost:5173");
 
     let app = Route::new()
-        .at("/post/volunteer", post(api::volunteer::create))
-        .at("/get/volunteer", get(api::volunteer::find_all))
-        .at("get/volunteer/search/find_by_id/:id", get(api::volunteer::find_by_id))
+        .at("/volunteer", post(api::volunteer::create).get(api::volunteer::find_all))
+        .at("/volunteer/:id", get(api::volunteer::find_by_id))
 
-        .at("/post/animal", post(api::animal::create))
-        .at("/get/animal", get(api::animal::find_all))
-        .at("/get/animal/search/find_by_id/:id", get(api::animal::find_by_id))
+        .at("/animal", post(api::animal::create).get(api::animal::find_all))
+        .at("/animal/:id", get(api::animal::find_by_id))
 
-        .at("/post/resource", post(api::resource::create))
-        .at("/get/resource", get(api::resource::find_all))
-        .at("/get/resource/search/find_by_id/:id", get(api::resource::find_by_id))
+        .at("/resource", post(api::resource::create).get(api::resource::find_all))
+        .at("/resource/:id", get(api::resource::find_by_id))
         .with(cors)
         .data(pool);
 
