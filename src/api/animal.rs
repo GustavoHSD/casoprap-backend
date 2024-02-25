@@ -103,3 +103,27 @@ pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> impl In
     }; 
     response
 }
+
+#[handler]
+pub async fn find_by_volunteer(Path(volunteer_id): Path<i64>, pool: Data<&MySqlPool>,) -> impl IntoResponse {
+    let resources = sqlx::query_as!(
+        Animal,
+        "SELECT * FROM Animal WHERE responsible_volunteer = ?",
+        volunteer_id
+    )
+    .fetch_all(pool.0)
+    .await;  
+
+    let response = match resources {   
+        Ok(resources) => Json(resources).into_response(),
+        Err(_) => {
+            let error_message = serde_json::json!({"message": "Volunteer has no animals associated"});
+            Response::builder()
+            .content_type("application/json; charset=utf-8")
+            .status(StatusCode::NOT_FOUND)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response() 
+         },
+    }; 
+    response
+}

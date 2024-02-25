@@ -58,11 +58,9 @@ pub async fn find_all(pool: Data<&MySqlPool>,) -> impl IntoResponse {
     .await;  
 
     let response = match resources {   
-        Ok(volunteers) => Json(volunteers).into_response(),
+        Ok(resources) => Json(resources).into_response(),
         Err(error) => {
-
-            let error_message = serde_json::json!({"error": error.to_string()});
- 
+            let error_message = serde_json::json!({"error": error.to_string()}); 
             Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .body(serde_json::to_string(&error_message).unwrap())
@@ -86,6 +84,30 @@ pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> impl In
         Ok(resource) => Json(resource).into_response(),
         Err(_) => {
             let error_message = serde_json::json!({"message": "Resource not found"});
+            Response::builder()
+            .content_type("application/json; charset=utf-8")
+            .status(StatusCode::NOT_FOUND)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response() 
+         },
+    }; 
+    response
+}
+
+#[handler]
+pub async fn find_by_volunteer(Path(volunteer_id): Path<i64>, pool: Data<&MySqlPool>,) -> impl IntoResponse {
+    let resources = sqlx::query_as!(
+        Resource,
+        "SELECT * FROM Resource WHERE volunteer_id = ?",
+        volunteer_id
+    )
+    .fetch_all(pool.0)
+    .await;  
+
+    let response = match resources {   
+        Ok(resources) => Json(resources).into_response(),
+        Err(_) => {
+            let error_message = serde_json::json!({"message": "Volunteer has no resources associated"});
             Response::builder()
             .content_type("application/json; charset=utf-8")
             .status(StatusCode::NOT_FOUND)

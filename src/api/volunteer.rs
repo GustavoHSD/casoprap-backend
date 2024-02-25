@@ -60,9 +60,7 @@ pub async fn find_all(pool: Data<&MySqlPool>,) -> impl IntoResponse {
     let response = match volunteers {   
         Ok(volunteers) => Json(volunteers).into_response(),
         Err(error) => {
-
-            let error_message = serde_json::json!({"error": error.to_string()});
- 
+            let error_message = serde_json::json!({"error": error.to_string()}); 
             Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .body(serde_json::to_string(&error_message).unwrap())
@@ -83,9 +81,7 @@ pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>) -> impl Int
     .await;
 
     let response = match volunteer {
-        Ok(volunteer) => {
-            Json(volunteer).into_response()
-        },
+        Ok(volunteer) => Json(volunteer).into_response(),
         Err(_) => { 
             let error_message = serde_json::json!({"message": "Volunteer not found"});
             Response::builder()
@@ -97,3 +93,5 @@ pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>) -> impl Int
     };
     response
 }
+
+

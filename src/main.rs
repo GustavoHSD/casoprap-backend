@@ -23,9 +23,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         .at("/animal", post(api::animal::create).get(api::animal::find_all))
         .at("/animal/:id", get(api::animal::find_by_id))
+        .at("/animal/by_volunteer/:volunteer_id", post(api::animal::find_by_volunteer))
 
         .at("/resource", post(api::resource::create).get(api::resource::find_all))
         .at("/resource/:id", get(api::resource::find_by_id))
+        .at("/resource/by_volunteer/:volunteer_id", get(api::resource::find_by_volunteer))
         .with(cors)
         .data(pool);
 
