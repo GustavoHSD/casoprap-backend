@@ -3,7 +3,7 @@ use sqlx::MySqlPool;
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize)]
-struct Volunteer {
+pub struct Volunteer {
     id: i32,
     name: String,
     cpf: String,

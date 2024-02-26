@@ -21,8 +21,7 @@ struct AnimalReq {
     a_type: String,
     age: i16,
     rescue_location: String,
-    responsible_volunteer: i32,
-}
+    responsible_volunteer: i32, }
 
 #[handler]
 pub async fn create( 
@@ -106,16 +105,65 @@ pub async fn find_by_id(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> impl In
 
 #[handler]
 pub async fn find_by_volunteer(Path(volunteer_id): Path<i64>, pool: Data<&MySqlPool>,) -> impl IntoResponse {
-    let resources = sqlx::query_as!(
+    let animals = sqlx::query_as!(
         Animal,
         "SELECT * FROM Animal WHERE responsible_volunteer = ?",
         volunteer_id
     )
     .fetch_all(pool.0)
+    .await; 
+
+    let response = match animals {   
+        Ok(animals) => Json(animals).into_response(),
+        Err(_) => {
+            let error_message = serde_json::json!({"message": "Volunteer has no animals associated"});
+            Response::builder()
+            .content_type("application/json; charset=utf-8")
+            .status(StatusCode::NOT_FOUND)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response() 
+         },
+    }; 
+    response
+}
+
+#[handler]
+pub async fn set_as_adopted(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> impl IntoResponse {
+    let query_result = sqlx::query_as!(
+        Animal,
+        "UPDATE Animal SET is_adopted=true WHERE id = ?",
+        id
+    )
+    .execute(pool.0)
     .await;  
 
-    let response = match resources {   
-        Ok(resources) => Json(resources).into_response(),
+    let response = match query_result {   
+        Ok(_) => Response::builder().status(StatusCode::OK).finish().into_response(),
+        Err(_) => {
+            let error_message = serde_json::json!({"message": "Volunteer has no animals associated"});
+            Response::builder()
+            .content_type("application/json; charset=utf-8")
+            .status(StatusCode::NOT_FOUND)
+            .body(serde_json::to_string(&error_message).unwrap())
+            .into_response() 
+         },
+    }; 
+    response
+}
+
+
+#[handler]
+pub async fn set_as_not_adopted(Path(id): Path<i64>, pool: Data<&MySqlPool>,) -> impl IntoResponse {
+    let query_result = sqlx::query_as!(
+        Animal,
+        "UPDATE Animal SET is_adopted=false WHERE id = ?",
+        id
+    )
+    .execute(pool.0)
+    .await;  
+
+    let response = match query_result {   
+        Ok(_) => Response::builder().status(StatusCode::OK).finish().into_response(),
         Err(_) => {
             let error_message = serde_json::json!({"message": "Volunteer has no animals associated"});
             Response::builder()
